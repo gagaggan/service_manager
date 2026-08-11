@@ -14,7 +14,7 @@ FlaskFarm에서 Docker 컨테이너와 systemd 서비스를 한 화면에서 확
 FlaskFarm 관리자 화면의 플러그인 설치 메뉴에 이 저장소 URL을 입력합니다.
 
 ```text
-https://github.com/gagaggan/flaskfarm-service-manager
+https://github.com/gagaggan/service_manager
 ```
 
 이 플러그인은 FlaskFarm 공식 `setup.py` / `PluginModuleBase` 규격을 따릅니다.
