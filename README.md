@@ -21,6 +21,7 @@ https://github.com/gagaggan/service_manager
 
 ## 변경 이력
 
+- `0.3.2`: Docker Compose 배포 설정을 플러그인 저장소에서 분리
 - `0.3.1`: 배포 패키지에서 생성된 Python 캐시 제거
 - `0.3.0`: 사용자 systemd 서비스(Codex) 조회·재시작 지원
 - `0.2.3`: Docker Engine chunked 응답 처리 수정
@@ -35,9 +36,11 @@ https://github.com/gagaggan/service_manager
 
 ## Docker Compose 실행
 
-저장소의 `docker-compose.yml`은 기존 `ff` 컨테이너 실행 옵션을 옮긴 파일입니다.
+Docker Compose 파일은 플러그인 저장소와 분리해 서버의
+`/docker/FF/docker-compose.yml`에 둡니다.
 
 ```bash
+cd /docker/FF
 docker compose up -d
 ```
 
@@ -46,6 +49,7 @@ docker compose up -d
 ```bash
 docker stop ff
 docker rm ff
+cd /docker/FF
 docker compose up -d
 ```
 
