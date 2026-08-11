@@ -34,6 +34,18 @@ systemd:
     - my-app.service
 ```
 
+FlaskFarm이 Docker 컨테이너 안에서 실행된다면 FlaskFarm 컨테이너에 Docker
+소켓을 연결해야 합니다. Docker Compose에서는 다음을 추가합니다.
+
+```yaml
+volumes:
+  - /var/run/docker.sock:/var/run/docker.sock
+```
+
+Docker 소켓이 연결되지 않으면 Docker 항목은 `unavailable`로 표시됩니다.
+systemd 항목은 FlaskFarm이 호스트의 systemd에 직접 접근할 수 없으므로
+별도 호스트 에이전트가 필요합니다.
+
 ## 테스트용 실행
 
 ```bash
