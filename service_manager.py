@@ -5,7 +5,9 @@ from __future__ import annotations
 import json
 import os
 import re
+import socket
 import subprocess
+from urllib.parse import quote
 from dataclasses import dataclass
 from typing import Any
 
@@ -29,6 +31,7 @@ class ServiceManager:
         self.systemd_enabled = bool(systemd.get("enabled", True))
         self.containers = self._safe_containers(docker.get("containers", []))
         self.services = self._safe_services(systemd.get("services", []))
+        self.docker_socket = os.environ.get("SERVICE_MANAGER_DOCKER_SOCKET", "/var/run/docker.sock")
 
     @staticmethod
     def _safe_containers(values: list[str]) -> tuple[str, ...]:
@@ -60,15 +63,13 @@ class ServiceManager:
         return result
 
     def _docker_status(self, name: str) -> dict[str, Any]:
-        code, out, error = self._run(
-            ["docker", "inspect", "--format", "{{json .State}}", name]
-        )
-        if code != 0:
-            return {"kind": "docker", "name": name, "status": "missing", "error": error}
         try:
-            state = json.loads(out)
-        except json.JSONDecodeError:
-            return {"kind": "docker", "name": name, "status": "unknown", "error": "invalid docker output"}
+            data = self._docker_api("GET", f"/containers/{quote(name, safe='')}/json")
+            state = data.get("State", {})
+        except FileNotFoundError:
+            return {"kind": "docker", "name": name, "status": "unavailable", "error": f"Docker socket not found: {self.docker_socket}"}
+        except Exception as e:
+            return {"kind": "docker", "name": name, "status": "unavailable", "error": str(e)}
         health = state.get("Health") or {}
         return {
             "kind": "docker",
@@ -79,6 +80,36 @@ class ServiceManager:
             "started_at": state.get("StartedAt"),
             "exit_code": state.get("ExitCode"),
         }
+
+    def _docker_api(self, method: str, path: str) -> dict[str, Any]:
+        """Call the local Docker Engine API without requiring docker CLI."""
+        client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        try:
+            client.settimeout(10)
+            client.connect(self.docker_socket)
+            request = (
+                f"{method} {path} HTTP/1.1\r\n"
+                "Host: docker\r\n"
+                "Connection: close\r\n"
+                "\r\n"
+            ).encode()
+            client.sendall(request)
+            chunks = []
+            while True:
+                chunk = client.recv(65536)
+                if not chunk:
+                    break
+                chunks.append(chunk)
+        finally:
+            client.close()
+        raw = b"".join(chunks)
+        header, _, body = raw.partition(b"\r\n\r\n")
+        status_line = header.splitlines()[0].decode("latin1") if header else ""
+        status = int(status_line.split()[1]) if len(status_line.split()) > 1 else 0
+        data = json.loads(body.decode() or "{}")
+        if status >= 400:
+            raise RuntimeError(data.get("message", f"Docker API HTTP {status}"))
+        return data
 
     def _systemd_status(self, name: str) -> dict[str, Any]:
         code, out, error = self._run(
@@ -99,10 +130,13 @@ class ServiceManager:
 
     def restart(self, kind: str, name: str) -> dict[str, Any]:
         if kind == "docker" and name in self.containers and self.docker_enabled:
-            code, out, error = self._run(["docker", "restart", name], timeout=60)
+            try:
+                self._docker_api("POST", f"/containers/{quote(name, safe='')}/restart?t=10")
+                return {"ok": True, "output": "Docker container restarted", "error": ""}
+            except Exception as e:
+                return {"ok": False, "output": "", "error": str(e)}
         elif kind == "systemd" and name in self.services and self.systemd_enabled:
             code, out, error = self._run(["systemctl", "restart", name], timeout=60)
         else:
             return {"ok": False, "error": "target is not allowlisted"}
         return {"ok": code == 0, "output": out, "error": error}
-
