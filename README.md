@@ -9,11 +9,15 @@ FlaskFarm에서 Docker 컨테이너와 systemd 서비스를 한 화면에서 확
 운영해야 합니다. `config.yaml`의 allowlist에 등록된 대상만 동작하도록
 설계되어 있습니다. Docker 소켓을 외부 TCP에 노출하지 마세요.
 
-## 개발 상태
+## FlaskFarm 설치
 
-현재 버전은 핵심 서비스 조회/재시작 로직과 Flask 테스트용 Blueprint를
-포함한 초기 골격입니다. 실제 FlaskFarm 메뉴 등록은 설치된 FlaskFarm
-버전에 맞춰 `__init__.py`의 어댑터를 연결해야 합니다.
+FlaskFarm 관리자 화면의 플러그인 설치 메뉴에 이 저장소 URL을 입력합니다.
+
+```text
+https://github.com/gagaggan/flaskfarm-service-manager
+```
+
+이 플러그인은 FlaskFarm 공식 `setup.py` / `PluginModuleBase` 규격을 따릅니다.
 
 ## 설정 예시
 
@@ -35,4 +39,3 @@ systemd:
 ```bash
 python -m pytest
 ```
-
