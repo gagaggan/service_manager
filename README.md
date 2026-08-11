@@ -19,6 +19,11 @@ https://github.com/gagaggan/service_manager
 
 이 플러그인은 FlaskFarm 공식 `setup.py` / `PluginModuleBase` 규격을 따릅니다.
 
+## 변경 이력
+
+- `0.1.1`: Docker 컨테이너와 systemd 서비스를 별도 섹션으로 표시
+- `0.1.0`: 초기 서비스 조회 및 재시작 기능
+
 ## 설정 예시
 
 ```yaml
