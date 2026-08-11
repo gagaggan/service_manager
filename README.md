@@ -21,10 +21,27 @@ https://github.com/gagaggan/service_manager
 
 ## 변경 이력
 
+- `0.1.4`: 기존 `docker run` 설정을 재사용 가능한 Docker Compose 파일로 추가
 - `0.1.3`: FlaskFarm 공통 레이아웃을 적용해 기존 메뉴·로그 화면과 통합
 - `0.1.2`: systemd 미연결 환경에서 오류 화면 대신 unavailable 상태 표시
 - `0.1.1`: Docker 컨테이너와 systemd 서비스를 별도 섹션으로 표시
 - `0.1.0`: 초기 서비스 조회 및 재시작 기능
+
+## Docker Compose 실행
+
+저장소의 `docker-compose.yml`은 기존 `ff` 컨테이너 실행 옵션을 옮긴 파일입니다.
+
+```bash
+docker compose up -d
+```
+
+기존에 같은 이름의 컨테이너가 실행 중이면 먼저 중지/삭제해야 합니다.
+
+```bash
+docker stop ff
+docker rm ff
+docker compose up -d
+```
 
 ## 설정 예시
 
