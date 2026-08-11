@@ -21,6 +21,7 @@ https://github.com/gagaggan/service_manager
 
 ## 변경 이력
 
+- `0.1.2`: systemd 미연결 환경에서 오류 화면 대신 unavailable 상태 표시
 - `0.1.1`: Docker 컨테이너와 systemd 서비스를 별도 섹션으로 표시
 - `0.1.0`: 초기 서비스 조회 및 재시작 기능
 

@@ -112,9 +112,12 @@ class ServiceManager:
         return data
 
     def _systemd_status(self, name: str) -> dict[str, Any]:
-        code, out, error = self._run(
-            ["systemctl", "show", name, "--no-pager", "--property=ActiveState,SubState,LoadState,Result,MainPID"]
-        )
+        try:
+            code, out, error = self._run(
+                ["systemctl", "show", name, "--no-pager", "--property=ActiveState,SubState,LoadState,Result,MainPID"]
+            )
+        except FileNotFoundError:
+            return {"kind": "systemd", "name": name, "status": "unavailable", "error": "systemctl is not available in this container"}
         if code != 0:
             return {"kind": "systemd", "name": name, "status": "missing", "error": error}
         fields = dict(line.split("=", 1) for line in out.splitlines() if "=" in line)
@@ -136,7 +139,10 @@ class ServiceManager:
             except Exception as e:
                 return {"ok": False, "output": "", "error": str(e)}
         elif kind == "systemd" and name in self.services and self.systemd_enabled:
-            code, out, error = self._run(["systemctl", "restart", name], timeout=60)
+            try:
+                code, out, error = self._run(["systemctl", "restart", name], timeout=60)
+            except FileNotFoundError:
+                return {"ok": False, "output": "", "error": "systemctl is not available in this container"}
         else:
             return {"ok": False, "error": "target is not allowlisted"}
         return {"ok": code == 0, "output": out, "error": error}
