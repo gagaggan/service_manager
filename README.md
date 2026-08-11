@@ -21,6 +21,7 @@ https://github.com/gagaggan/service_manager
 
 ## 변경 이력
 
+- `0.2.1`: 배포 패키지에서 생성된 Python 캐시 제거
 - `0.2.0`: 제한된 호스트 systemd 에이전트 연결 추가
 - `0.1.4`: 기존 `docker run` 설정을 재사용 가능한 Docker Compose 파일로 추가
 - `0.1.3`: FlaskFarm 공통 레이아웃을 적용해 기존 메뉴·로그 화면과 통합
