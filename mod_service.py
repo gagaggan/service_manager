@@ -25,9 +25,9 @@ class ModuleService(PluginModuleBase):
             return render_template('sample.html', title=f'{__package__}/{name}/{page}')
 
     def process_command(self, command, arg1, arg2, arg3, req):
-        if command != 'restart':
+        if command not in ('start', 'stop', 'restart'):
             return jsonify({'ok': False, 'error': 'unknown command'}), 400
-        result = self.P.service_manager.restart(arg1 or '', arg2 or '')
+        result = self.P.service_manager.control(command, arg1 or '', arg2 or '')
         return jsonify(result), (200 if result.get('ok') else 400)
 
     def plugin_load(self):

@@ -195,23 +195,26 @@ class ServiceManager:
             raise RuntimeError(result.get("error", "systemd agent request failed"))
         return result.get("data", {})
 
-    def restart(self, kind: str, name: str) -> dict[str, Any]:
-        if kind == "docker" and name in self.containers and self.docker_enabled:
+    def control(self, action: str, kind: str, name: str) -> dict[str, Any]:
+        if action not in ('start', 'stop', 'restart'):
+            return {'ok': False, 'error': 'unsupported action'}
+        if kind == 'docker' and name in self.containers and self.docker_enabled:
             try:
-                self._docker_api("POST", f"/containers/{quote(name, safe='')}/restart?t=10")
-                return {"ok": True, "output": "Docker container restarted", "error": ""}
+                suffix = '?t=10' if action == 'stop' else ''
+                self._docker_api('POST', f"/containers/{quote(name, safe='')}/{action}{suffix}")
+                return {'ok': True, 'output': f'Docker container {action} completed', 'error': ''}
             except Exception as e:
-                return {"ok": False, "output": "", "error": str(e)}
-        elif kind == "systemd" and self.systemd_enabled:
-            target = next((item for item in self.services if item["name"] == name), None)
+                return {'ok': False, 'output': '', 'error': str(e)}
+        if kind == 'systemd' and self.systemd_enabled:
+            target = next((item for item in self.services if item['name'] == name), None)
             if target is None:
-                return {"ok": False, "error": "target is not allowlisted"}
+                return {'ok': False, 'error': 'target is not allowlisted'}
             try:
-                self._systemd_agent("restart", target)
-                return {"ok": True, "output": "systemd service restarted", "error": ""}
-            except FileNotFoundError:
-                return {"ok": False, "output": "", "error": "systemd agent socket not found"}
+                self._systemd_agent(action, target)
+                return {'ok': True, 'output': f'systemd service {action} completed', 'error': ''}
             except Exception as e:
-                return {"ok": False, "output": "", "error": str(e)}
-        else:
-            return {"ok": False, "error": "target is not allowlisted"}
+                return {'ok': False, 'output': '', 'error': str(e)}
+        return {'ok': False, 'error': 'target is not allowlisted'}
+
+    def restart(self, kind: str, name: str) -> dict[str, Any]:
+        return self.control('restart', kind, name)

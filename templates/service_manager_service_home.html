@@ -16,12 +16,14 @@
         <td>{{ service.status }}</td>
         <td>{{ service.health or service.sub_status or '-' }}</td>
         <td>{{ service.error or service.result or '' }}</td>
-        <td><form method="post" action="/service_manager/ajax/service/command" style="display:inline">
-          <input type="hidden" name="command" value="restart">
-          <input type="hidden" name="arg1" value="{{ service.kind }}">
-          <input type="hidden" name="arg2" value="{{ service.name }}">
-          <button class="btn btn-warning btn-sm" type="submit">재시작</button>
-        </form></td>
+        <td>
+          {% for action, label, css in [('start', '시작', 'btn-success'), ('stop', '중지', 'btn-danger'), ('restart', '재시작', 'btn-warning')] %}
+          <form method="post" action="/service_manager/ajax/service/command" style="display:inline" onsubmit="return confirm('{{ service.name }} 서비스를 {{ label }}할까요?')">
+            <input type="hidden" name="command" value="{{ action }}"><input type="hidden" name="arg1" value="{{ service.kind }}"><input type="hidden" name="arg2" value="{{ service.name }}">
+            <button class="btn {{ css }} btn-xs" type="submit">{{ label }}</button>
+          </form>
+          {% endfor %}
+        </td>
       </tr>
       {% else %}
       <tr><td colspan="5" class="text-muted">등록된 {{ section_title }}가 없습니다.</td></tr>

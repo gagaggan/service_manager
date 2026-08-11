@@ -92,8 +92,8 @@ class Handler(socketserver.StreamRequestHandler):
                     "result": fields.get("Result"),
                     "pid": fields.get("MainPID"),
                 }
-            elif action == "restart":
-                proc = systemctl(target, ["restart", service])
+            elif action in ("start", "stop", "restart"):
+                proc = systemctl(target, [action, service])
                 data = {"output": proc.stdout.strip()}
             else:
                 raise ValueError("unsupported action")
