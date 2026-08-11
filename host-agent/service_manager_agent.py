@@ -57,6 +57,29 @@ class Handler(socketserver.StreamRequestHandler):
             service = target.get("name", "")
             action = request.get("action", "")
             allowlisted = allowed_services()
+            if action == "configure":
+                services = request.get("services", [])
+                normalized = {}
+                for target_item in services:
+                    if not isinstance(target_item, dict):
+                        raise ValueError("invalid service target")
+                    name = target_item.get("name", "")
+                    scope = target_item.get("scope", "system")
+                    user = target_item.get("user", "")
+                    if not UNIT_RE.fullmatch(name):
+                        raise ValueError("invalid service name")
+                    if scope == "system":
+                        normalized[name] = {"name": name, "scope": scope}
+                    elif scope == "user" and USER_RE.fullmatch(user):
+                        normalized[name] = {"name": name, "scope": scope, "user": user}
+                    else:
+                        raise ValueError("invalid service target")
+                Path(CONFIG_PATH).parent.mkdir(parents=True, exist_ok=True)
+                temporary = Path(CONFIG_PATH).with_suffix(".tmp")
+                temporary.write_text(json.dumps({"services": list(normalized.values())}, indent=2) + "\n")
+                os.replace(temporary, CONFIG_PATH)
+                self.wfile.write((json.dumps({"ok": True, "data": {"count": len(normalized)}}) + "\n").encode())
+                return
             if service not in allowlisted or allowlisted[service] != target:
                 raise ValueError("service is not allowlisted")
             if action == "status":
