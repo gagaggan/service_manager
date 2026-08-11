@@ -1,17 +1,30 @@
 <div class="container-fluid">
-  <h3>Docker / systemd 서비스</h3>
+  <h3>서비스 관리</h3>
   <p class="text-muted">허용 목록에 등록된 대상만 재시작할 수 있습니다.</p>
+
+  {% for section_kind, section_title in [('docker', 'Docker 컨테이너'), ('systemd', 'systemd 서비스')] %}
+  <h4 style="margin-top: 24px;">{{ section_title }}</h4>
   <table class="table table-bordered table-hover">
-    <thead><tr><th>종류</th><th>이름</th><th>상태</th><th>Health</th><th>상세</th><th>작업</th></tr></thead>
+    <thead><tr><th>이름</th><th>상태</th><th>Health / Sub 상태</th><th>상세</th><th>작업</th></tr></thead>
     <tbody>
-      {% for service in services %}
-      <tr><td>{{ service.kind }}</td><td>{{ service.name }}</td><td>{{ service.status }}</td>
-        <td>{{ service.health or service.sub_status or '-' }}</td><td>{{ service.error or service.result or '' }}</td>
+      {% set section_services = services | selectattr('kind', 'equalto', section_kind) | list %}
+      {% for service in section_services %}
+      <tr>
+        <td>{{ service.name }}</td>
+        <td>{{ service.status }}</td>
+        <td>{{ service.health or service.sub_status or '-' }}</td>
+        <td>{{ service.error or service.result or '' }}</td>
         <td><form method="post" action="/service_manager/ajax/service/command" style="display:inline">
-          <input type="hidden" name="command" value="restart"><input type="hidden" name="arg1" value="{{ service.kind }}">
-          <input type="hidden" name="arg2" value="{{ service.name }}"><button class="btn btn-warning btn-sm" type="submit">재시작</button>
-        </form></td></tr>
-      {% else %}<tr><td colspan="6">등록된 서비스가 없습니다.</td></tr>{% endfor %}
+          <input type="hidden" name="command" value="restart">
+          <input type="hidden" name="arg1" value="{{ service.kind }}">
+          <input type="hidden" name="arg2" value="{{ service.name }}">
+          <button class="btn btn-warning btn-sm" type="submit">재시작</button>
+        </form></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="text-muted">등록된 {{ section_title }}가 없습니다.</td></tr>
+      {% endfor %}
     </tbody>
   </table>
+  {% endfor %}
 </div>
