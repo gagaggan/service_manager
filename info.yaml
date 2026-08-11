@@ -1,0 +1,6 @@
+package_name: service_manager
+name: Service Manager
+version: 0.1.0
+developer: codex
+description: Docker and systemd service monitor for FlaskFarm
+

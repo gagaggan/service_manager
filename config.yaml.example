@@ -1,0 +1,11 @@
+docker:
+  enabled: true
+  containers:
+    - codex
+    - plex
+systemd:
+  enabled: true
+  services:
+    - nginx.service
+    - my-app.service
+

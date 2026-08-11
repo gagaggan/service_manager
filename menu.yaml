@@ -1,0 +1,6 @@
+setting:
+  name: Service Manager
+  list:
+    - uri: service_manager
+      name: 서비스 관리
+
