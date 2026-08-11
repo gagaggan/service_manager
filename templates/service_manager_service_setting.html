@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container-fluid">
+  <h3>허용 목록 설정</h3>
+  <p class="text-muted">한 줄에 하나씩 입력하세요. 저장하면 FlaskFarm DB와 systemd 에이전트에 반영됩니다.</p>
+  <form method="post" action="/service_manager/ajax/setting_save">
+    <div class="form-group">
+      <label for="service_docker_containers">Docker 컨테이너</label>
+      <textarea class="form-control" id="service_docker_containers" name="service_docker_containers" rows="5">{{ arg.get('service_docker_containers', '') }}</textarea>
+    </div>
+    <div class="form-group">
+      <label for="service_systemd_services">systemd 서비스</label>
+      <textarea class="form-control" id="service_systemd_services" name="service_systemd_services" rows="8">{{ arg.get('service_systemd_services', '') }}</textarea>
+      <p class="help-block">시스템 서비스: <code>nginx.service</code><br>사용자 서비스: <code>user|사용자명|서비스명.service</code></p>
+    </div>
+    <button class="btn btn-primary" type="submit">저장</button>
+  </form>
+</div>
+{% endblock %}

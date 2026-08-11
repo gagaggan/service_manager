@@ -11,7 +11,7 @@ FlaskFarm의 플러그인 설치 화면에 다음 저장소 주소를 입력합�
 https://github.com/gagaggan/service_manager
 ```
 
-관리 대상은 `setup.py`와 FlaskFarm 설정 DB에서 관리합니다.
+관리 대상은 플러그인의 `허용 목록 설정` 화면에서 FlaskFarm DB로 관리합니다.
 
 ## 호스트 systemd 에이전트
 

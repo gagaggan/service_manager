@@ -37,6 +37,26 @@ class ServiceManager:
             "SERVICE_MANAGER_SYSTEMD_SOCKET", "/run/service-manager-agent.sock"
         )
 
+    def configure_from_settings(self, model_setting) -> None:
+        docker_names = model_setting.get_list("service_docker_containers") or []
+        systemd_values = model_setting.get_list("service_systemd_services") or []
+        systemd_targets = []
+        for value in systemd_values:
+            parts = [x.strip() for x in value.split("|", 2)]
+            if len(parts) == 3 and parts[0] == "user":
+                systemd_targets.append({"name": parts[2], "scope": "user", "user": parts[1]})
+            else:
+                systemd_targets.append(value)
+        self.containers = self._safe_containers(docker_names)
+        self.services = self._safe_services(systemd_targets)
+
+    def sync_systemd_allowlist(self) -> dict[str, Any]:
+        try:
+            self._systemd_agent("configure", list(self.services))
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
     @staticmethod
     def _safe_containers(values: list[str]) -> tuple[str, ...]:
         return tuple(str(x) for x in values if _CONTAINER_RE.fullmatch(str(x)))
@@ -151,12 +171,17 @@ class ServiceManager:
         except Exception as e:
             return {"kind": "systemd", "name": name, "status": "unavailable", "error": str(e)}
 
-    def _systemd_agent(self, action: str, target: dict[str, str]) -> dict[str, Any]:
+    def _systemd_agent(self, action: str, target) -> dict[str, Any]:
         client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         try:
             client.settimeout(10)
             client.connect(self.systemd_agent_socket)
-            client.sendall((json.dumps({"action": action, "target": target}) + "\n").encode())
+            payload = {"action": action}
+            if action == "configure":
+                payload["services"] = target
+            else:
+                payload["target"] = target
+            client.sendall((json.dumps(payload) + "\n").encode())
             data = b""
             while not data.endswith(b"\n"):
                 chunk = client.recv(65536)
