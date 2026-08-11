@@ -4,7 +4,7 @@ After=local-fs.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/lib/service-manager-agent/service_manager_agent.py
+ExecStart=/usr/bin/python3 /usr/local/lib/service-manager-agent/service_manager_agent.py
 User=root
 Group=service-manager
 Restart=on-failure
