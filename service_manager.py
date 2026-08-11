@@ -107,6 +107,19 @@ class ServiceManager:
             client.close()
         raw = b"".join(chunks)
         header, _, body = raw.partition(b"\r\n\r\n")
+        if b"transfer-encoding: chunked" in header.lower():
+            decoded = b""
+            while body:
+                size_end = body.find(b"\r\n")
+                if size_end < 0:
+                    break
+                size = int(body[:size_end].split(b";", 1)[0], 16)
+                if size == 0:
+                    break
+                start = size_end + 2
+                decoded += body[start:start + size]
+                body = body[start + size + 2:]
+            body = decoded
         status_line = header.splitlines()[0].decode("latin1") if header else ""
         status = int(status_line.split()[1]) if len(status_line.split()) > 1 else 0
         data = json.loads(body.decode() or "{}")

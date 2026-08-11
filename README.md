@@ -21,6 +21,7 @@ https://github.com/gagaggan/service_manager
 
 ## 변경 이력
 
+- `0.2.3`: Docker Engine chunked 응답 처리 수정
 - `0.2.2`: 호스트 Python을 사용하는 에이전트 실행 경로 고정
 - `0.2.1`: 배포 패키지에서 생성된 Python 캐시 제거
 - `0.2.0`: 제한된 호스트 systemd 에이전트 연결 추가
