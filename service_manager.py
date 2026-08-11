@@ -32,6 +32,9 @@ class ServiceManager:
         self.containers = self._safe_containers(docker.get("containers", []))
         self.services = self._safe_services(systemd.get("services", []))
         self.docker_socket = os.environ.get("SERVICE_MANAGER_DOCKER_SOCKET", "/var/run/docker.sock")
+        self.systemd_agent_socket = os.environ.get(
+            "SERVICE_MANAGER_SYSTEMD_SOCKET", "/run/service-manager-agent.sock"
+        )
 
     @staticmethod
     def _safe_containers(values: list[str]) -> tuple[str, ...]:
@@ -113,23 +116,32 @@ class ServiceManager:
 
     def _systemd_status(self, name: str) -> dict[str, Any]:
         try:
-            code, out, error = self._run(
-                ["systemctl", "show", name, "--no-pager", "--property=ActiveState,SubState,LoadState,Result,MainPID"]
-            )
+            result = self._systemd_agent("status", name)
+            result.update({"kind": "systemd", "name": name})
+            return result
         except FileNotFoundError:
-            return {"kind": "systemd", "name": name, "status": "unavailable", "error": "systemctl is not available in this container"}
-        if code != 0:
-            return {"kind": "systemd", "name": name, "status": "missing", "error": error}
-        fields = dict(line.split("=", 1) for line in out.splitlines() if "=" in line)
-        return {
-            "kind": "systemd",
-            "name": name,
-            "status": fields.get("ActiveState", "unknown"),
-            "sub_status": fields.get("SubState"),
-            "load_state": fields.get("LoadState"),
-            "result": fields.get("Result"),
-            "pid": fields.get("MainPID"),
-        }
+            return {"kind": "systemd", "name": name, "status": "unavailable", "error": "systemd agent socket not found"}
+        except Exception as e:
+            return {"kind": "systemd", "name": name, "status": "unavailable", "error": str(e)}
+
+    def _systemd_agent(self, action: str, name: str) -> dict[str, Any]:
+        client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        try:
+            client.settimeout(10)
+            client.connect(self.systemd_agent_socket)
+            client.sendall((json.dumps({"action": action, "service": name}) + "\n").encode())
+            data = b""
+            while not data.endswith(b"\n"):
+                chunk = client.recv(65536)
+                if not chunk:
+                    break
+                data += chunk
+        finally:
+            client.close()
+        result = json.loads(data.decode() or "{}")
+        if not result.get("ok"):
+            raise RuntimeError(result.get("error", "systemd agent request failed"))
+        return result.get("data", {})
 
     def restart(self, kind: str, name: str) -> dict[str, Any]:
         if kind == "docker" and name in self.containers and self.docker_enabled:
@@ -140,9 +152,11 @@ class ServiceManager:
                 return {"ok": False, "output": "", "error": str(e)}
         elif kind == "systemd" and name in self.services and self.systemd_enabled:
             try:
-                code, out, error = self._run(["systemctl", "restart", name], timeout=60)
+                self._systemd_agent("restart", name)
+                return {"ok": True, "output": "systemd service restarted", "error": ""}
             except FileNotFoundError:
-                return {"ok": False, "output": "", "error": "systemctl is not available in this container"}
+                return {"ok": False, "output": "", "error": "systemd agent socket not found"}
+            except Exception as e:
+                return {"ok": False, "output": "", "error": str(e)}
         else:
             return {"ok": False, "error": "target is not allowlisted"}
-        return {"ok": code == 0, "output": out, "error": error}

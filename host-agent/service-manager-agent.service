@@ -1,0 +1,18 @@
+[Unit]
+Description=FlaskFarm allowlisted systemd service agent
+After=local-fs.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/lib/service-manager-agent/service_manager_agent.py
+User=root
+Group=service-manager
+Restart=on-failure
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full
+ReadWritePaths=/run
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,6 @@
+{
+  "services": [
+    "nginx.service",
+    "plexmediaserver.service"
+  ]
+}

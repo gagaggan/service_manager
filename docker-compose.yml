@@ -12,6 +12,7 @@ services:
 
       # Docker Engine API access for the service manager plugin
       - /var/run/docker.sock:/var/run/docker.sock
+      - /run/service-manager-agent.sock:/run/service-manager-agent.sock
 
       # Host and media paths used by the existing installation
       - /:/host

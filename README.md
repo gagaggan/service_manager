@@ -21,6 +21,7 @@ https://github.com/gagaggan/service_manager
 
 ## 변경 이력
 
+- `0.2.0`: 제한된 호스트 systemd 에이전트 연결 추가
 - `0.1.4`: 기존 `docker run` 설정을 재사용 가능한 Docker Compose 파일로 추가
 - `0.1.3`: FlaskFarm 공통 레이아웃을 적용해 기존 메뉴·로그 화면과 통합
 - `0.1.2`: systemd 미연결 환경에서 오류 화면 대신 unavailable 상태 표시
@@ -67,8 +68,24 @@ volumes:
 ```
 
 Docker 소켓이 연결되지 않으면 Docker 항목은 `unavailable`로 표시됩니다.
-systemd 항목은 FlaskFarm이 호스트의 systemd에 직접 접근할 수 없으므로
-별도 호스트 에이전트가 필요합니다.
+
+### systemd 호스트 에이전트
+
+호스트에서 다음처럼 설치합니다.
+
+```bash
+sudo install -d /usr/local/lib/service-manager-agent /etc/service-manager-agent
+sudo install -m 755 host-agent/service_manager_agent.py /usr/local/lib/service-manager-agent/
+sudo install -m 644 host-agent/service-manager-agent.service /etc/systemd/system/
+sudo install -m 640 host-agent/services.json.example /etc/service-manager-agent/services.json
+sudo groupadd --system service-manager 2>/dev/null || true
+sudo systemctl daemon-reload
+sudo systemctl enable --now service-manager-agent
+```
+
+`services.json`에는 실제로 허용할 `.service`만 남깁니다. 이후 `docker compose up -d`
+로 FlaskFarm을 재생성하면 `/run/service-manager-agent.sock`을 통해 호스트
+systemd 상태 조회와 재시작을 사용할 수 있습니다.
 
 ## 테스트용 실행
 
