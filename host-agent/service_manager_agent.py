@@ -12,19 +12,35 @@ from pathlib import Path
 SOCKET_PATH = os.environ.get("SERVICE_MANAGER_AGENT_SOCKET", "/run/service-manager-agent.sock")
 CONFIG_PATH = os.environ.get("SERVICE_MANAGER_AGENT_CONFIG", "/etc/service-manager-agent/services.json")
 UNIT_RE = re.compile(r"^[A-Za-z0-9_.@:-]+\.service$")
+USER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_-]{0,31}$")
 
 
 def allowed_services():
     try:
         data = json.loads(Path(CONFIG_PATH).read_text())
-        return {x for x in data.get("services", []) if UNIT_RE.fullmatch(x)}
+        result = {}
+        for value in data.get("services", []):
+            if isinstance(value, str) and UNIT_RE.fullmatch(value):
+                result[value] = {"name": value, "scope": "system"}
+            elif isinstance(value, dict):
+                name = str(value.get("name", ""))
+                scope = str(value.get("scope", "system"))
+                user = str(value.get("user", ""))
+                if UNIT_RE.fullmatch(name) and scope == "system":
+                    result[name] = {"name": name, "scope": scope}
+                elif UNIT_RE.fullmatch(name) and scope == "user" and USER_RE.fullmatch(user):
+                    result[name] = {"name": name, "scope": scope, "user": user}
+        return result
     except (OSError, json.JSONDecodeError):
         return set()
 
 
-def systemctl(args):
+def systemctl(target, args):
+    command = ["/usr/bin/systemctl"]
+    if target["scope"] == "user":
+        command += ["--user", "--machine", f"{target['user']}@.host"]
     return subprocess.run(
-        ["/usr/bin/systemctl", *args],
+        [*command, *args],
         capture_output=True,
         text=True,
         timeout=30,
@@ -37,12 +53,14 @@ class Handler(socketserver.StreamRequestHandler):
     def handle(self):
         try:
             request = json.loads(self.rfile.readline(65536).decode())
-            service = request.get("service", "")
+            target = request.get("target", {})
+            service = target.get("name", "")
             action = request.get("action", "")
-            if service not in allowed_services():
+            allowlisted = allowed_services()
+            if service not in allowlisted or allowlisted[service] != target:
                 raise ValueError("service is not allowlisted")
             if action == "status":
-                proc = systemctl(["show", service, "--no-pager", "--property=ActiveState,SubState,LoadState,Result,MainPID"])
+                proc = systemctl(target, ["show", service, "--no-pager", "--property=ActiveState,SubState,LoadState,Result,MainPID"])
                 fields = dict(line.split("=", 1) for line in proc.stdout.splitlines() if "=" in line)
                 data = {
                     "status": fields.get("ActiveState", "unknown"),
@@ -52,7 +70,7 @@ class Handler(socketserver.StreamRequestHandler):
                     "pid": fields.get("MainPID"),
                 }
             elif action == "restart":
-                proc = systemctl(["restart", service])
+                proc = systemctl(target, ["restart", service])
                 data = {"output": proc.stdout.strip()}
             else:
                 raise ValueError("unsupported action")

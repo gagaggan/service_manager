@@ -17,7 +17,11 @@ from plugin import *  # noqa: E402,F401,F403
 P = create_plugin_instance(setting)
 P.service_manager = ServiceManager({
     'docker': {'enabled': True, 'containers': ['codex', 'plex']},
-    'systemd': {'enabled': True, 'services': ['nginx.service']},
+    'systemd': {'enabled': True, 'services': [
+        {'name': 'codex-app-server.service', 'scope': 'user', 'user': 'jmnoh'},
+        {'name': 'nginx.service', 'scope': 'system'},
+        {'name': 'plexmediaserver.service', 'scope': 'system'},
+    ]},
 })
 
 from .mod_service import ModuleService  # noqa: E402

@@ -1,6 +1,7 @@
 {
   "services": [
-    "nginx.service",
-    "plexmediaserver.service"
+    {"name": "codex-app-server.service", "scope": "user", "user": "jmnoh"},
+    {"name": "nginx.service", "scope": "system"},
+    {"name": "plexmediaserver.service", "scope": "system"}
   ]
 }

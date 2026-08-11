@@ -13,6 +13,7 @@ from typing import Any
 
 
 _UNIT_RE = re.compile(r"^[A-Za-z0-9_.@:-]+\.service$")
+_USER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_-]{0,31}$")
 _CONTAINER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
 
 
@@ -41,8 +42,20 @@ class ServiceManager:
         return tuple(str(x) for x in values if _CONTAINER_RE.fullmatch(str(x)))
 
     @staticmethod
-    def _safe_services(values: list[str]) -> tuple[str, ...]:
-        return tuple(str(x) for x in values if _UNIT_RE.fullmatch(str(x)))
+    def _safe_services(values: list[Any]) -> tuple[dict[str, str], ...]:
+        result = []
+        for value in values:
+            if isinstance(value, str) and _UNIT_RE.fullmatch(value):
+                result.append({"name": value, "scope": "system"})
+            elif isinstance(value, dict):
+                name = str(value.get("name", ""))
+                scope = str(value.get("scope", "system"))
+                user = str(value.get("user", ""))
+                if _UNIT_RE.fullmatch(name) and scope == "system":
+                    result.append({"name": name, "scope": scope})
+                elif _UNIT_RE.fullmatch(name) and scope == "user" and _USER_RE.fullmatch(user):
+                    result.append({"name": name, "scope": scope, "user": user})
+        return tuple(result)
 
     def _run(self, args: list[str], timeout: int = 15) -> tuple[int, str, str]:
         proc = subprocess.run(
@@ -61,8 +74,8 @@ class ServiceManager:
             for name in self.containers:
                 result.append(self._docker_status(name))
         if self.systemd_enabled:
-            for name in self.services:
-                result.append(self._systemd_status(name))
+            for target in self.services:
+                result.append(self._systemd_status(target))
         return result
 
     def _docker_status(self, name: str) -> dict[str, Any]:
@@ -127,9 +140,10 @@ class ServiceManager:
             raise RuntimeError(data.get("message", f"Docker API HTTP {status}"))
         return data
 
-    def _systemd_status(self, name: str) -> dict[str, Any]:
+    def _systemd_status(self, target: dict[str, str]) -> dict[str, Any]:
+        name = target["name"]
         try:
-            result = self._systemd_agent("status", name)
+            result = self._systemd_agent("status", target)
             result.update({"kind": "systemd", "name": name})
             return result
         except FileNotFoundError:
@@ -137,12 +151,12 @@ class ServiceManager:
         except Exception as e:
             return {"kind": "systemd", "name": name, "status": "unavailable", "error": str(e)}
 
-    def _systemd_agent(self, action: str, name: str) -> dict[str, Any]:
+    def _systemd_agent(self, action: str, target: dict[str, str]) -> dict[str, Any]:
         client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         try:
             client.settimeout(10)
             client.connect(self.systemd_agent_socket)
-            client.sendall((json.dumps({"action": action, "service": name}) + "\n").encode())
+            client.sendall((json.dumps({"action": action, "target": target}) + "\n").encode())
             data = b""
             while not data.endswith(b"\n"):
                 chunk = client.recv(65536)
@@ -163,9 +177,12 @@ class ServiceManager:
                 return {"ok": True, "output": "Docker container restarted", "error": ""}
             except Exception as e:
                 return {"ok": False, "output": "", "error": str(e)}
-        elif kind == "systemd" and name in self.services and self.systemd_enabled:
+        elif kind == "systemd" and self.systemd_enabled:
+            target = next((item for item in self.services if item["name"] == name), None)
+            if target is None:
+                return {"ok": False, "error": "target is not allowlisted"}
             try:
-                self._systemd_agent("restart", name)
+                self._systemd_agent("restart", target)
                 return {"ok": True, "output": "systemd service restarted", "error": ""}
             except FileNotFoundError:
                 return {"ok": False, "output": "", "error": "systemd agent socket not found"}
