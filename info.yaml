@@ -1,5 +1,5 @@
 title: "서비스 관리자"
-version: "0.5.0"
+version: "0.5.1"
 package_name: "service_manager"
 developer: "gagaggan"
 description: "Docker 컨테이너와 systemd 서비스를 확인하고 시작·중지·재시작합니다."

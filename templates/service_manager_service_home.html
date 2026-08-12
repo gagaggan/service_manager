@@ -2,7 +2,8 @@
 {% block content %}
 <div class="container-fluid">
   <h3>서비스 관리</h3>
-  <p class="text-muted">허용 목록에 등록된 대상만 재시작할 수 있습니다.</p>
+  <p class="text-muted">허용 목록에 등록된 대상만 시작·중지·재시작할 수 있습니다.</p>
+  <div id="service_action_result" style="margin:8px 0;"></div>
 
   {% for section_kind, section_title in [('docker', 'Docker 컨테이너'), ('systemd', 'systemd 서비스')] %}
   <h4 style="margin-top: 24px;">{{ section_title }}</h4>
@@ -18,7 +19,7 @@
         <td>{{ service.error or service.result or '' }}</td>
         <td>
           {% for action, label, css in [('start', '시작', 'btn-success'), ('stop', '중지', 'btn-danger'), ('restart', '재시작', 'btn-warning')] %}
-          <form method="post" action="/service_manager/ajax/service/command" style="display:inline" onsubmit="return confirm('{{ service.name }} 서비스를 {{ label }}할까요?')">
+          <form class="service-action-form" method="post" action="/service_manager/ajax/service/command" style="display:inline" data-confirm="{{ service.name }} 서비스를 {{ label }}할까요?">
             <input type="hidden" name="command" value="{{ action }}"><input type="hidden" name="arg1" value="{{ service.kind }}"><input type="hidden" name="arg2" value="{{ service.name }}">
             <button class="btn {{ css }} btn-xs" type="submit">{{ label }}</button>
           </form>
@@ -32,4 +33,28 @@
   </table>
   {% endfor %}
 </div>
+<script>
+$(document).on('submit', '.service-action-form', function(e) {
+  e.preventDefault();
+  var form = $(this);
+  if (!window.confirm(form.data('confirm'))) return false;
+  var result = $('#service_action_result');
+  result.text('명령 실행 중...').css('color', '');
+  form.find('button').prop('disabled', true);
+  $.ajax({
+    url: form.attr('action'),
+    type: 'POST',
+    data: form.serialize(),
+    dataType: 'json'
+  }).done(function(ret) {
+    result.text(ret.output || '명령이 완료되었습니다.').css('color', 'green');
+    setTimeout(function() { window.location.reload(); }, 700);
+  }).fail(function(xhr) {
+    var data = xhr.responseJSON || {};
+    result.text(data.error || '명령 실행에 실패했습니다.').css('color', 'red');
+    form.find('button').prop('disabled', false);
+  });
+  return false;
+});
+</script>
 {% endblock %}
