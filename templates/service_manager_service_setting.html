@@ -20,6 +20,7 @@
     </div>
     <div class="form-group">
       <label>systemd 서비스</label>
+      <p class="text-muted">호스트 필수 서비스는 새 후보에서 숨깁니다. 이미 등록한 서비스는 계속 표시됩니다.</p>
       {% if candidates.systemd %}
         <div class="well well-sm">
         {% for service in candidates.systemd %}
