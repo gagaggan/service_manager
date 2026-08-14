@@ -117,7 +117,7 @@ class ServiceManager:
             "exit_code": state.get("ExitCode"),
         }
 
-    def _docker_api(self, method: str, path: str) -> dict[str, Any]:
+    def _docker_api(self, method: str, path: str) -> Any:
         """Call the local Docker Engine API without requiring docker CLI."""
         client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         try:
@@ -159,6 +159,32 @@ class ServiceManager:
         if status >= 400:
             raise RuntimeError(data.get("message", f"Docker API HTTP {status}"))
         return data
+
+    def list_candidates(self) -> dict[str, Any]:
+        """Return selectable host services without changing the allowlist."""
+        candidates: dict[str, Any] = {"docker": [], "systemd": [], "errors": {}}
+        if self.docker_enabled:
+            try:
+                containers = self._docker_api("GET", "/containers/json?all=1")
+                names = {
+                    str(name).lstrip("/")
+                    for container in containers
+                    for name in container.get("Names", [])
+                    if _CONTAINER_RE.fullmatch(str(name).lstrip("/"))
+                }
+                candidates["docker"] = sorted(names, key=str.lower)
+            except Exception as e:
+                candidates["errors"]["docker"] = str(e)
+        if self.systemd_enabled:
+            try:
+                services = self._systemd_agent("list", None).get("services", [])
+                candidates["systemd"] = sorted(
+                    {str(name) for name in services if _UNIT_RE.fullmatch(str(name))},
+                    key=str.lower,
+                )
+            except Exception as e:
+                candidates["errors"]["systemd"] = str(e)
+        return candidates
 
     def _systemd_status(self, target: dict[str, str]) -> dict[str, Any]:
         name = target["name"]

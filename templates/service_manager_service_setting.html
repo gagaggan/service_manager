@@ -2,18 +2,62 @@
 {% block content %}
 <div class="container-fluid">
   <h3>허용 목록 설정</h3>
-  <p class="text-muted">한 줄에 하나씩 입력하세요. 저장하면 FlaskFarm DB와 systemd 에이전트에 반영됩니다.</p>
-  <form method="post" action="/service_manager/ajax/setting_save">
+  <p class="text-muted">Docker 컨테이너와 systemd에 등록된 서비스를 선택하세요. 저장하면 FlaskFarm DB와 systemd 에이전트에 반영됩니다.</p>
+  <form id="setting" method="post" action="/service_manager/ajax/setting_save">
     <div class="form-group">
-      <label for="service_docker_containers">Docker 컨테이너</label>
-      <textarea class="form-control" id="service_docker_containers" name="service_docker_containers" rows="5">{{ arg.get('service_docker_containers', '') }}</textarea>
+      <label>Docker 컨테이너</label>
+      {% if candidates.docker %}
+        <div class="well well-sm">
+        {% for container in candidates.docker %}
+          <label class="checkbox-inline"><input type="checkbox" class="docker-candidate" value="{{ container }}" {% if container in arg.get('service_docker_containers', '').splitlines() %}checked{% endif %}> {{ container }}</label>
+        {% endfor %}
+        </div>
+      {% else %}
+        <p class="text-muted">표시할 Docker 컨테이너가 없습니다.</p>
+      {% endif %}
+      {% if candidates.errors.get('docker') %}<p class="text-warning">Docker 목록을 가져오지 못했습니다: {{ candidates.errors['docker'] }}</p>{% endif %}
+      <textarea class="form-control" id="service_docker_containers" name="service_docker_containers" rows="3" placeholder="목록에 없는 컨테이너는 한 줄에 하나씩 입력">{{ arg.get('service_docker_containers', '') }}</textarea>
     </div>
     <div class="form-group">
-      <label for="service_systemd_services">systemd 서비스</label>
-      <textarea class="form-control" id="service_systemd_services" name="service_systemd_services" rows="8">{{ arg.get('service_systemd_services', '') }}</textarea>
+      <label>systemd 서비스</label>
+      {% if candidates.systemd %}
+        <div class="well well-sm">
+        {% for service in candidates.systemd %}
+          <label class="checkbox-inline"><input type="checkbox" class="systemd-candidate" value="{{ service }}" {% if service in arg.get('service_systemd_services', '').splitlines() %}checked{% endif %}> {{ service }}</label>
+        {% endfor %}
+        </div>
+      {% else %}
+        <p class="text-muted">표시할 systemd 서비스가 없습니다.</p>
+      {% endif %}
+      {% if candidates.errors.get('systemd') %}<p class="text-warning">systemd 목록을 가져오지 못했습니다: {{ candidates.errors['systemd'] }}</p>{% endif %}
+      <textarea class="form-control" id="service_systemd_services" name="service_systemd_services" rows="5" placeholder="시스템 서비스는 서비스명.service, 사용자 서비스는 user|사용자명|서비스명.service">{{ arg.get('service_systemd_services', '') }}</textarea>
       <p class="help-block">시스템 서비스: <code>nginx.service</code><br>사용자 서비스: <code>user|사용자명|서비스명.service</code></p>
     </div>
-    <button class="btn btn-primary" type="submit">저장</button>
+    <button class="btn btn-primary" type="submit">저장</button><span id="save_result" style="margin-left:12px"></span>
   </form>
 </div>
+<script>
+function selectedValues(selector, textarea) {
+  var allCandidates = $(selector).map(function() { return this.value; }).get();
+  var selected = $(selector + ':checked').map(function() { return this.value; }).get();
+  var manual = $(textarea).val().split(/\r?\n/).map(function(value) { return value.trim(); }).filter(function(value) {
+    return value && allCandidates.indexOf(value) === -1;
+  });
+  $(textarea).val(selected.concat(manual).join('\n'));
+}
+$('#setting').on('submit', function(e) {
+  e.preventDefault();
+  selectedValues('.docker-candidate', '#service_docker_containers');
+  selectedValues('.systemd-candidate', '#service_systemd_services');
+  var result = $('#save_result');
+  result.text('저장 중...').css('color', '');
+  $.ajax({url: this.action, type: 'POST', data: $(this).serialize(), dataType: 'json'})
+    .done(function() { result.text('저장되었습니다.').css('color', 'green'); })
+    .fail(function(xhr) {
+      var data = xhr.responseJSON || {};
+      result.text('저장 실패: ' + (data.msg || data.error || '오류')).css('color', 'red');
+    });
+  return false;
+});
+</script>
 {% endblock %}

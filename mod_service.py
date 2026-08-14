@@ -17,7 +17,11 @@ class ModuleService(PluginModuleBase):
     def process_menu(self, page, req):
         try:
             if page == 'setting':
-                return render_template(f'{__package__}_{name}_setting.html', arg=self.P.ModelSetting.to_dict())
+                return render_template(
+                    f'{__package__}_{name}_setting.html',
+                    arg=self.P.ModelSetting.to_dict(),
+                    candidates=self.P.service_manager.list_candidates(),
+                )
             return render_template(f'{__package__}_{name}_home.html', services=self.P.service_manager.list_status())
         except Exception as e:
             self.P.logger.error(f'Exception:{str(e)}')
