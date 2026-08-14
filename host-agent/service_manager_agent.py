@@ -53,7 +53,7 @@ class Handler(socketserver.StreamRequestHandler):
     def handle(self):
         try:
             request = json.loads(self.rfile.readline(65536).decode())
-            target = request.get("target", {})
+            target = request.get("target") or {}
             service = target.get("name", "")
             action = request.get("action", "")
             allowlisted = allowed_services()

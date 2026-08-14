@@ -163,27 +163,43 @@ class ServiceManager:
     def list_candidates(self) -> dict[str, Any]:
         """Return selectable host services without changing the allowlist."""
         candidates: dict[str, Any] = {"docker": [], "systemd": [], "errors": {}}
+        docker_names = set(self.containers)
         if self.docker_enabled:
             try:
                 containers = self._docker_api("GET", "/containers/json?all=1")
-                names = {
+                docker_names.update(
                     str(name).lstrip("/")
                     for container in containers
                     for name in container.get("Names", [])
                     if _CONTAINER_RE.fullmatch(str(name).lstrip("/"))
-                }
-                candidates["docker"] = sorted(names, key=str.lower)
+                )
             except Exception as e:
                 candidates["errors"]["docker"] = str(e)
+        candidates["docker"] = sorted(docker_names, key=str.lower)
+
+        systemd_names: dict[str, str] = {}
         if self.systemd_enabled:
             try:
                 services = self._systemd_agent("list", None).get("services", [])
-                candidates["systemd"] = sorted(
-                    {str(name) for name in services if _UNIT_RE.fullmatch(str(name))},
-                    key=str.lower,
+                systemd_names.update(
+                    (str(name), str(name))
+                    for name in services
+                    if _UNIT_RE.fullmatch(str(name))
                 )
             except Exception as e:
                 candidates["errors"]["systemd"] = str(e)
+        for target in self.services:
+            if target["scope"] == "user":
+                value = f"user|{target['user']}|{target['name']}"
+                label = f"{target['name']} (사용자: {target['user']})"
+            else:
+                value = target["name"]
+                label = value
+            systemd_names[value] = label
+        candidates["systemd"] = [
+            {"value": value, "label": label}
+            for value, label in sorted(systemd_names.items(), key=lambda item: item[1].lower())
+        ]
         return candidates
 
     def _systemd_status(self, target: dict[str, str]) -> dict[str, Any]:
@@ -205,7 +221,7 @@ class ServiceManager:
             payload = {"action": action}
             if action == "configure":
                 payload["services"] = target
-            else:
+            elif target is not None:
                 payload["target"] = target
             client.sendall((json.dumps(payload) + "\n").encode())
             data = b""

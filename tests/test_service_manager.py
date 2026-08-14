@@ -42,6 +42,9 @@ def test_list_candidates_is_read_only_and_validates_names(monkeypatch):
     monkeypatch.setattr(manager, "_systemd_agent", fake_systemd_agent)
     assert manager.list_candidates() == {
         "docker": ["ff", "plex"],
-        "systemd": ["nginx.service", "plexmediaserver.service"],
+        "systemd": [
+            {"value": "nginx.service", "label": "nginx.service"},
+            {"value": "plexmediaserver.service", "label": "plexmediaserver.service"},
+        ],
         "errors": {},
     }
