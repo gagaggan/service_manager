@@ -48,3 +48,14 @@ def test_list_candidates_is_read_only_and_validates_names(monkeypatch):
         ],
         "errors": {},
     }
+
+
+def test_list_candidates_hides_host_critical_units_but_keeps_saved_units(monkeypatch):
+    manager = ServiceManager({"systemd": {"services": ["sshd.service"]}})
+    manager._docker_api = lambda method, path: []
+    manager._systemd_agent = lambda action, target: {
+        "services": ["dbus.service", "sshd.service", "my-app.service"]
+    }
+
+    values = {item["value"] for item in manager.list_candidates()["systemd"]}
+    assert values == {"my-app.service", "sshd.service"}

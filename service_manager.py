@@ -16,6 +16,14 @@ _UNIT_RE = re.compile(r"^[A-Za-z0-9_.@:-]+\.service$")
 _USER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_-]{0,31}$")
 _CONTAINER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
 
+_PROTECTED_SYSTEMD_PREFIXES = (
+    "systemd-", "dbus", "getty@", "serial-getty@", "user@", "session-",
+    "network", "NetworkManager", "wpa_supplicant", "docker", "containerd",
+    "ssh", "sshd", "cron", "rsyslog", "polkit", "udev", "modprobe@",
+    "apt-", "unattended-upgrades", "snap", "service-manager-agent",
+)
+
+
 
 @dataclass(frozen=True)
 class ServiceTarget:
@@ -160,6 +168,11 @@ class ServiceManager:
             raise RuntimeError(data.get("message", f"Docker API HTTP {status}"))
         return data
 
+    @staticmethod
+    def _is_manageable_systemd_unit(name: str) -> bool:
+        """Hide host-critical units from new selections while preserving saved ones."""
+        return not name.startswith(_PROTECTED_SYSTEMD_PREFIXES)
+
     def list_candidates(self) -> dict[str, Any]:
         """Return selectable host services without changing the allowlist."""
         candidates: dict[str, Any] = {"docker": [], "systemd": [], "errors": {}}
@@ -185,6 +198,7 @@ class ServiceManager:
                     (str(name), str(name))
                     for name in services
                     if _UNIT_RE.fullmatch(str(name))
+                    and self._is_manageable_systemd_unit(str(name))
                 )
             except Exception as e:
                 candidates["errors"]["systemd"] = str(e)
