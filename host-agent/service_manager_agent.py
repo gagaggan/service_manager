@@ -80,6 +80,24 @@ class Handler(socketserver.StreamRequestHandler):
                 os.replace(temporary, CONFIG_PATH)
                 self.wfile.write((json.dumps({"ok": True, "data": {"count": len(normalized)}}) + "\n").encode())
                 return
+            if action == "list":
+                proc = subprocess.run(
+                    ["/usr/bin/systemctl", "list-unit-files", "--type=service", "--no-legend", "--no-pager"],
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                    check=False,
+                    env={"PATH": "/usr/bin:/bin", "SYSTEMD_COLORS": "0"},
+                )
+                if proc.returncode != 0:
+                    raise RuntimeError(proc.stderr.strip() or "systemctl list-unit-files failed")
+                services = [
+                    line.split(None, 1)[0]
+                    for line in proc.stdout.splitlines()
+                    if line.split() and UNIT_RE.fullmatch(line.split(None, 1)[0])
+                ]
+                self.wfile.write((json.dumps({"ok": True, "data": {"services": services}}) + "\n").encode())
+                return
             if service not in allowlisted or allowlisted[service] != target:
                 raise ValueError("service is not allowlisted")
             if action == "status":
