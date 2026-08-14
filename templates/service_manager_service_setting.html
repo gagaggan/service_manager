@@ -16,22 +16,21 @@
         <p class="text-muted">표시할 Docker 컨테이너가 없습니다.</p>
       {% endif %}
       {% if candidates.errors.get('docker') %}<p class="text-warning">Docker 목록을 가져오지 못했습니다: {{ candidates.errors['docker'] }}</p>{% endif %}
-      <textarea class="form-control" id="service_docker_containers" name="service_docker_containers" rows="3" placeholder="목록에 없는 컨테이너는 한 줄에 하나씩 입력">{{ arg.get('service_docker_containers', '') }}</textarea>
+      <input type="hidden" id="service_docker_containers" name="service_docker_containers" value="{{ arg.get('service_docker_containers', '') }}">
     </div>
     <div class="form-group">
       <label>systemd 서비스</label>
       {% if candidates.systemd %}
         <div class="well well-sm">
         {% for service in candidates.systemd %}
-          <label class="checkbox-inline"><input type="checkbox" class="systemd-candidate" value="{{ service }}" {% if service in arg.get('service_systemd_services', '').splitlines() %}checked{% endif %}> {{ service }}</label>
+          <label class="checkbox-inline"><input type="checkbox" class="systemd-candidate" value="{{ service['value'] }}" {% if service['value'] in arg.get('service_systemd_services', '').splitlines() %}checked{% endif %}> {{ service['label'] }}</label>
         {% endfor %}
         </div>
       {% else %}
         <p class="text-muted">표시할 systemd 서비스가 없습니다.</p>
       {% endif %}
       {% if candidates.errors.get('systemd') %}<p class="text-warning">systemd 목록을 가져오지 못했습니다: {{ candidates.errors['systemd'] }}</p>{% endif %}
-      <textarea class="form-control" id="service_systemd_services" name="service_systemd_services" rows="5" placeholder="시스템 서비스는 서비스명.service, 사용자 서비스는 user|사용자명|서비스명.service">{{ arg.get('service_systemd_services', '') }}</textarea>
-      <p class="help-block">시스템 서비스: <code>nginx.service</code><br>사용자 서비스: <code>user|사용자명|서비스명.service</code></p>
+      <input type="hidden" id="service_systemd_services" name="service_systemd_services" value="{{ arg.get('service_systemd_services', '') }}">
     </div>
     <button class="btn btn-primary" type="submit">저장</button><span id="save_result" style="margin-left:12px"></span>
   </form>
